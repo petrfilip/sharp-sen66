@@ -22,6 +22,8 @@ struct AppConfig {
 
   String tmepBaseUrl = "";
 
+  float temperatureOffset = -2.0f;
+
   uint8_t displayRotation = 2;
   bool displayInvertRequested = false;
 };
