@@ -1,6 +1,7 @@
 #include "config.h"
 
 #include <Preferences.h>
+#include <cmath>
 
 namespace {
 constexpr const char* NS = "appcfg";
@@ -12,6 +13,7 @@ void sanitize(AppConfig& cfg) {
   if (cfg.mqttPublishInterval < 1000) cfg.mqttPublishInterval = 10000;
   if (cfg.tmepRequestInterval < 1000) cfg.tmepRequestInterval = 60000;
   if (cfg.mqttWarmupDelay < 1000) cfg.mqttWarmupDelay = 60000;
+  if (!isfinite(cfg.temperatureOffset)) cfg.temperatureOffset = -2.0f;
 }
 }  // namespace
 
@@ -49,6 +51,7 @@ bool loadConfig(AppConfig& config) {
   config.mqttWarmupDelay = pref.getULong("mqtt_warmup", config.mqttWarmupDelay);
 
   config.tmepBaseUrl = pref.getString("tmep_base", config.tmepBaseUrl);
+  config.temperatureOffset = pref.getFloat("temp_offset", config.temperatureOffset);
 
   config.displayRotation = pref.getUChar("disp_rot", config.displayRotation);
   config.displayInvertRequested = pref.getBool("disp_inv", config.displayInvertRequested);
@@ -82,6 +85,7 @@ bool saveConfig(const AppConfig& config) {
   pref.putULong("mqtt_warmup", config.mqttWarmupDelay);
 
   pref.putString("tmep_base", config.tmepBaseUrl);
+  pref.putFloat("temp_offset", config.temperatureOffset);
 
   pref.putUChar("disp_rot", config.displayRotation);
   pref.putBool("disp_inv", config.displayInvertRequested);
