@@ -17,6 +17,7 @@ class WifiProvisioning {
   void begin(AppConfig* config, unsigned long connectTimeoutMs = 20000UL);
   void process();
 
+  bool reconnectWithoutSaving(String& statusMsg);
   bool saveCredentialsAndConnect(const String& ssid, const String& password, String& statusMsg);
   bool forgetCredentials();
 
@@ -28,6 +29,7 @@ class WifiProvisioning {
 
  private:
   bool connectStaBlocking(unsigned long timeoutMs);
+  void startStaConnect(bool forceDisconnect);
   void startCaptiveMode();
   void stopCaptiveMode();
   bool hasStoredCredentials() const;

@@ -30,11 +30,7 @@ A custom 3D-printable enclosure for this project is available on Printables:
 - Online/offline status with Last Will and Testament
 - Bidirectional control — send messages to the display from HA
 - Built-in web UI (tabs: **Aktuální data** + **Konfigurace**) on port 80
-<<<<<<< ours
-- Optional TMEP.cz HTTP upload with tokenized query parameters
-=======
-- TMEP.cz integration with real-time request URL preview and manual request button in web UI
->>>>>>> theirs
+- TMEP.cz integration with tokenized query parameters, real-time request URL preview and manual request button
 - MQTT publish protection: invalid startup values are filtered + warmup delay before first publish
 
 ## Hardware
@@ -77,7 +73,8 @@ GPIO8           I2C SCL         SEN66
    File → Open Folder → select sharp-sen66-mqtt-display
    ```
 
-3. **Edit initial configuration** in `src/main.cpp` (WiFi + MQTT defaults).
+3. **Optional: adjust default settings** in `src/config.h`.
+   In běžném provozu se Wi-Fi a ostatní nastavení dělají přes captive portal a web UI po prvním bootu.
 
 4. **Build and Upload**
    - Press `Ctrl+Shift+P` → type `PlatformIO: Upload` → Enter
@@ -119,11 +116,13 @@ After connecting the device to WiFi, open: `http://<device-ip>/`
 2. **Konfigurace**
    - WiFi: SSID + password
    - MQTT: server, port, username, password
-   - Display: rotation (0-3, výchozí **2**), invert request
-   - TMEP.cz: base URL, live preview of real request URL, manual request trigger
+   - Display: rotation (0-3, výchozí **2**), display mode, graph metric/range
+   - Temporary display control: apply `dashboard / graph / auto-cycle` without saving to NVS and without restart
+   - TMEP.cz: domain + query params, live preview of real request URL, manual request trigger
    - Intervals: display refresh, MQTT publish, **TMEP request interval**, MQTT warmup delay
 
-> Konfigurace se ukládá perzistentně do NVS (zůstane po restartu). Po uložení z webu se zařízení automaticky restartuje.
+> Plné uložení konfigurace se ukládá perzistentně do NVS (zůstane po restartu) a po uložení z webu se zařízení automaticky restartuje.
+> Samotné přepnutí toho, co se má na displeji právě zobrazovat, lze nově udělat i dočasně bez restartu, takže se neztratí historie držená v RAM.
 
 
 ## TMEP.cz Upload
@@ -132,11 +131,10 @@ The device can optionally send every measured sample to TMEP.cz via HTTP GET.
 
 Web config fields:
 - **Doména pro zasílání hodnot**: e.g. `xxk4sk-g6rxfh`
-- **Parametry požadavku**: e.g. `tempV=*TEMP*&humV=*HUM*&rssi=*RSSI*`
+- **Parametry požadavku**: e.g. `tempV=*TEMP*&humV=*HUM*&co2=*CO2*`
 
 Supported placeholders:
 - Sensor values: `*TEMP*`, `*HUM*`, `*PM1*`, `*PM2*` (PM2.5), `*PM4*`, `*PM10*`, `*VOC*`, `*NOX*`, `*CO2*`
-- System values: `*RSSI*`, `*UPTIME*`, `*FREEHEAP*`, `*IP*`
 
 Configuration is persisted in NVS together with the rest of the settings.
 

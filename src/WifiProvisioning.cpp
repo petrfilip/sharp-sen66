@@ -67,6 +67,22 @@ void WifiProvisioning::process() {
   }
 }
 
+bool WifiProvisioning::reconnectWithoutSaving(String& statusMsg) {
+  if (!config_) {
+    statusMsg = "Interni chyba: config neni inicializovan";
+    return false;
+  }
+
+  if (!hasStoredCredentials()) {
+    statusMsg = "Chybi ulozene Wi-Fi udaje";
+    return false;
+  }
+
+  startStaConnect(true);
+  statusMsg = "Wi-Fi reconnect spusten bez zapisu do flash";
+  return true;
+}
+
 bool WifiProvisioning::saveCredentialsAndConnect(const String& ssid, const String& password, String& statusMsg) {
   if (!config_) {
     statusMsg = "Interni chyba: config neni inicializovan";
@@ -126,17 +142,28 @@ String WifiProvisioning::getStateText() const {
   }
 }
 
-bool WifiProvisioning::connectStaBlocking(unsigned long timeoutMs) {
-  if (!config_ || !hasStoredCredentials()) return false;
+void WifiProvisioning::startStaConnect(const bool forceDisconnect) {
+  if (!config_ || !hasStoredCredentials()) return;
 
   stopCaptiveMode();
 
   state_ = WIFI_STA_CONNECTING;
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
+  if (forceDisconnect) {
+    WiFi.disconnect(false, false);
+    delay(50);
+  }
   WiFi.begin(config_->wifiSsid.c_str(), config_->wifiPassword.c_str());
+  staConnectStartedAt_ = millis();
+  lastReconnectAttemptAt_ = millis();
   Serial.printf("WIFI PROV: Pripojuji k SSID '%s'\n", config_->wifiSsid.c_str());
+}
 
+bool WifiProvisioning::connectStaBlocking(unsigned long timeoutMs) {
+  if (!config_ || !hasStoredCredentials()) return false;
+
+  startStaConnect(true);
   unsigned long start = millis();
   while (WiFi.status() != WL_CONNECTED && (millis() - start) < timeoutMs) {
     delay(250);

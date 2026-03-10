@@ -6,7 +6,7 @@ struct AppConfig {
   String wifiSsid = "";
   String wifiPassword = "";
 
-  String mqttServer = "192.168.0.X";
+  String mqttServer = "";
   int mqttPort = 1883;
   String mqttUser = "";
   String mqttPassword = "";
@@ -18,6 +18,7 @@ struct AppConfig {
   unsigned long mqttPublishInterval = 10000;
   unsigned long tmepRequestInterval = 60000;
   unsigned long displayRefreshInterval = 2000;
+  unsigned long displayCycleInterval = 15000;
   unsigned long mqttWarmupDelay = 60000;
 
   String tmepBaseUrl = "";
@@ -26,6 +27,10 @@ struct AppConfig {
 
   uint8_t displayRotation = 2;
   bool displayInvertRequested = false;
+  uint8_t displayMode = 0;
+  uint8_t displayScreen = 0;
+  uint8_t displayGraphMetric = 0;
+  uint8_t displayGraphRange = 0;
 };
 
 bool loadConfig(AppConfig& config);
