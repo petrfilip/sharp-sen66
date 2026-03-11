@@ -95,8 +95,10 @@ bool SensorService::read(const AppConfig& config, SensorSnapshot& outData) {
   outData.co2 = co2;
   outData.valid = true;
 
+#if CORE_DEBUG_LEVEL >= 4
   Serial.printf("SEN66: T(raw)=%.1f T(adj)=%.1f H=%.1f PM2.5=%.1f VOC=%.0f NOx=%.0f CO2=%u\n",
                 temp, outData.temperature, hum, pm25, voc, nox, co2);
+#endif
   return true;
 }
 

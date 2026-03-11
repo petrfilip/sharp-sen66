@@ -26,12 +26,14 @@ class WifiProvisioning {
   String getStateText() const;
   String getApSsid() const { return apSsid_; }
   String getApIp() const { return apIp_.toString(); }
+  unsigned long nextActionDelayMs(unsigned long nowMs) const;
 
  private:
   bool connectStaBlocking(unsigned long timeoutMs);
-  void startStaConnect(bool forceDisconnect);
-  void startCaptiveMode();
+  void startStaConnect(bool forceDisconnect, unsigned long timeoutMs, bool fromCaptiveProbe = false);
+  void startCaptiveMode(bool scheduleRetry);
   void stopCaptiveMode();
+  void applyStaPowerSave() const;
   bool hasStoredCredentials() const;
 
   AppConfig* config_ = nullptr;
@@ -44,5 +46,8 @@ class WifiProvisioning {
   unsigned long connectTimeoutMs_ = 20000UL;
 
   unsigned long staConnectStartedAt_ = 0;
-  unsigned long lastReconnectAttemptAt_ = 0;
+  unsigned long staConnectTimeoutMs_ = 0;
+  unsigned long nextApRetryAt_ = 0;
+  uint8_t reconnectBackoffIndex_ = 0;
+  bool staProbeFromCaptive_ = false;
 };

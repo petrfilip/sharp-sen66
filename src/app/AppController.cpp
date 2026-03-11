@@ -41,6 +41,9 @@ constexpr unsigned long kSensorReadInterval = 2000UL;
 constexpr unsigned long kMqttReconnectInterval = 5000UL;
 constexpr unsigned long kHistorySampleInterval = 60000UL;
 constexpr unsigned long kWifiDebugOverlayDuration = 30000UL;
+constexpr unsigned long kWifiConnectTimeout = 30000UL;
+constexpr unsigned long kLoopDelayCapStaMs = 100UL;
+constexpr unsigned long kLoopDelayCapApMs = 50UL;
 
 struct WifiDebugSnapshot {
   bool connected = false;
@@ -116,6 +119,17 @@ String buildWifiDebugOverlayText(const WifiDebugSnapshot& snapshot, const String
   return text;
 }
 
+unsigned long intervalRemaining(const unsigned long nowMs,
+                                const unsigned long lastMs,
+                                const unsigned long intervalMs) {
+  const unsigned long elapsed = nowMs - lastMs;
+  return elapsed >= intervalMs ? 0UL : (intervalMs - elapsed);
+}
+
+unsigned long deadlineRemaining(const unsigned long nowMs, const unsigned long deadlineMs) {
+  return static_cast<long>(nowMs - deadlineMs) >= 0 ? 0UL : (deadlineMs - nowMs);
+}
+
 }  // namespace
 
 class AppController::Impl : public WebUi::Delegate {
@@ -156,6 +170,7 @@ class AppController::Impl : public WebUi::Delegate {
   void showTemporaryDisplayMessage(const String& text, unsigned long durationMs, int textSize = 1,
                                    int x = 6, int y = 8);
   void activateRawDisplayOverride();
+  unsigned long computeLoopDelayMs(unsigned long nowMs) const;
   void processPendingWifiReconnect();
   void drawCustomTextScreen();
   void renderCurrentView();
@@ -235,7 +250,7 @@ void AppController::Impl::setup() {
   dashboardRenderer_.renderSplash(appConfig_.wifiSsid, appConfig_.mqttServer);
   Serial.println("Display: OK!");
 
-  wifiProvisioning_.begin(&appConfig_, 20000UL);
+  wifiProvisioning_.begin(&appConfig_, kWifiConnectTimeout);
   runtime_.wasWifiConnected = wifiProvisioning_.getState() == WIFI_STA_CONNECTED;
 
   mqtt_.setServer(appConfig_.mqttServer.c_str(), appConfig_.mqttPort);
@@ -334,7 +349,7 @@ void AppController::Impl::loop() {
     renderCurrentView();
   }
 
-  delay(10);
+  delay(computeLoopDelayMs(now));
 }
 
 void AppController::Impl::applyDisplaySettings() {
@@ -612,6 +627,34 @@ void AppController::Impl::activateRawDisplayOverride() {
   runtime_.displayOverride.kind = DisplayOverrideKind::RawCanvas;
   runtime_.displayOverride.untilMs = 0;
   ++runtime_.displayOverride.canvasRevision;
+}
+
+unsigned long AppController::Impl::computeLoopDelayMs(const unsigned long nowMs) const {
+  if (pendingWifiReconnect_) {
+    return 0UL;
+  }
+
+  unsigned long delayMs = wifiProvisioning_.isCaptiveMode() ? kLoopDelayCapApMs : kLoopDelayCapStaMs;
+  delayMs = min(delayMs, intervalRemaining(nowMs, runtime_.lastSensorRead, kSensorReadInterval));
+  delayMs = min(delayMs, intervalRemaining(nowMs, runtime_.lastHistorySample, kHistorySampleInterval));
+  delayMs = min(delayMs, intervalRemaining(nowMs, runtime_.lastDisplayRefresh, appConfig_.displayRefreshInterval));
+  delayMs = min(delayMs, intervalRemaining(nowMs, runtime_.lastMqttPublish, appConfig_.mqttPublishInterval));
+  delayMs = min(delayMs, intervalRemaining(nowMs, runtime_.lastTmepRequest, appConfig_.tmepRequestInterval));
+  delayMs = min(delayMs, wifiProvisioning_.nextActionDelayMs(nowMs));
+
+  if (wifiProvisioning_.getState() == WIFI_STA_CONNECTED && appConfig_.mqttServer.length() > 0 && !isMqttConnected()) {
+    delayMs = min(delayMs, intervalRemaining(nowMs, runtime_.lastMqttReconnect, kMqttReconnectInterval));
+  }
+
+  if (runtime_.displayOverride.active && runtime_.displayOverride.kind == DisplayOverrideKind::Text) {
+    delayMs = min(delayMs, deadlineRemaining(nowMs, runtime_.displayOverride.untilMs));
+  }
+
+  if (!runtime_.displayOverride.active && effectiveDisplayMode() == airmon::DisplayMode::AutoCycle) {
+    delayMs = min(delayMs, intervalRemaining(nowMs, runtime_.lastAutoCycleAt, appConfig_.displayCycleInterval));
+  }
+
+  return delayMs;
 }
 
 void AppController::Impl::processPendingWifiReconnect() {

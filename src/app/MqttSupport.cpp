@@ -28,7 +28,9 @@ void publishSensorData(PubSubClient& mqtt,
                        const unsigned long nowMs) {
   if (!mqtt.connected() || !sensorData.valid) return;
   if (firstValidSensorAt == 0 || (nowMs - firstValidSensorAt) < mqttWarmupDelay) {
+#if CORE_DEBUG_LEVEL >= 4
     Serial.println("MQTT: warmup delay aktivni, publikace preskocena");
+#endif
     return;
   }
 
@@ -77,8 +79,10 @@ void publishSensorData(PubSubClient& mqtt,
   serializeJson(doc, jsonBuf, sizeof(jsonBuf));
   mqtt.publish(kTopicSensor, jsonBuf, true);
 
+#if CORE_DEBUG_LEVEL >= 4
   Serial.println("MQTT: Sensor data published");
   Serial.printf("MQTT: payload JSON: %s\n", jsonBuf);
+#endif
 }
 
 void publishHADiscovery(PubSubClient& mqtt) {
@@ -129,11 +133,15 @@ void publishHADiscovery(PubSubClient& mqtt) {
     serializeJson(doc, payload, sizeof(payload));
     mqtt.publish(topic, payload, true);
 
+#if CORE_DEBUG_LEVEL >= 4
     Serial.printf("HA Discovery: %s\n", sensor.name);
+#endif
     delay(50);
   }
 
+#if CORE_DEBUG_LEVEL >= 4
   Serial.println("HA Discovery: Hotovo!");
+#endif
 }
 
 bool reconnect(PubSubClient& mqtt, const AppConfig& config) {
