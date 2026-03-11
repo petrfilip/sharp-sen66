@@ -83,7 +83,12 @@ bool SensorService::read(const AppConfig& config, SensorSnapshot& outData) {
   outData.pm25 = pm25;
   outData.pm4 = pm4;
   outData.pm10 = pm10;
-  outData.temperature = temp + config.temperatureOffset;
+  const float adjustedTemperature = temp + config.temperatureOffset;
+  if (!isfinite(adjustedTemperature)) {
+    Serial.println("SEN66: upravena teplota neni konecna, preskakuji");
+    return false;
+  }
+  outData.temperature = adjustedTemperature;
   outData.humidity = hum;
   outData.voc = voc;
   outData.nox = nox;

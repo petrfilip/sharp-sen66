@@ -155,6 +155,7 @@ class AppController::Impl : public WebUi::Delegate {
   WifiDebugSnapshot captureWifiDebugSnapshot();
   void showTemporaryDisplayMessage(const String& text, unsigned long durationMs, int textSize = 1,
                                    int x = 6, int y = 8);
+  void activateRawDisplayOverride();
   void processPendingWifiReconnect();
   void drawCustomTextScreen();
   void renderCurrentView();
@@ -240,6 +241,7 @@ void AppController::Impl::setup() {
   mqtt_.setServer(appConfig_.mqttServer.c_str(), appConfig_.mqttPort);
   mqtt_.setCallback(mqttCallbackThunk);
   mqtt_.setBufferSize(1024);
+  tmepClient_.begin();
 
   if (runtime_.wasWifiConnected && appConfig_.mqttServer.length() > 0) {
     timeManager_.initTime();
@@ -257,6 +259,7 @@ void AppController::Impl::setup() {
 
 void AppController::Impl::loop() {
   const unsigned long now = millis();
+  runtime_.lastTmepStatus = tmepClient_.lastStatus();
 
   wifiProvisioning_.process();
   webServer_.handleClient();
@@ -315,10 +318,12 @@ void AppController::Impl::loop() {
 
   if (now - runtime_.lastTmepRequest > appConfig_.tmepRequestInterval) {
     runtime_.lastTmepRequest = now;
-    tmepClient_.sendRequest(appConfig_, sensorData_, runtime_.lastTmepStatus, false);
+    tmepClient_.queueRequest(appConfig_, sensorData_, false);
+    runtime_.lastTmepStatus = tmepClient_.lastStatus();
   }
 
-  if (runtime_.displayOverride.active && now > runtime_.displayOverride.untilMs) {
+  if (runtime_.displayOverride.active && runtime_.displayOverride.kind == DisplayOverrideKind::Text &&
+      now > runtime_.displayOverride.untilMs) {
     runtime_.displayOverride.active = false;
     resetAutoCycleTimer(now);
     Serial.println("Display: Override expired, zpet na aktualni view");
@@ -593,12 +598,20 @@ void AppController::Impl::showTemporaryDisplayMessage(const String& text,
                                                       const int x,
                                                       const int y) {
   runtime_.displayOverride.text = text;
+  runtime_.displayOverride.kind = DisplayOverrideKind::Text;
   runtime_.displayOverride.textSize = textSize;
   runtime_.displayOverride.x = x;
   runtime_.displayOverride.y = y;
   runtime_.displayOverride.active = true;
   runtime_.displayOverride.untilMs = millis() + durationMs;
   drawCustomTextScreen();
+}
+
+void AppController::Impl::activateRawDisplayOverride() {
+  runtime_.displayOverride.active = true;
+  runtime_.displayOverride.kind = DisplayOverrideKind::RawCanvas;
+  runtime_.displayOverride.untilMs = 0;
+  ++runtime_.displayOverride.canvasRevision;
 }
 
 void AppController::Impl::processPendingWifiReconnect() {
@@ -640,7 +653,11 @@ void AppController::Impl::renderCurrentView() {
   }
 
   if (runtime_.displayOverride.active) {
-    drawCustomTextScreen();
+    if (runtime_.displayOverride.kind == DisplayOverrideKind::Text) {
+      drawCustomTextScreen();
+    } else {
+      display_.refresh();
+    }
     runtime_.lastDisplaySignature = frameSignature;
     return;
   }
@@ -832,12 +849,12 @@ WebUiActionResult AppController::Impl::forgetWebUiWifi() {
 }
 
 WebUiActionResult AppController::Impl::sendWebUiTmep() {
-  const bool ok = tmepClient_.sendRequest(appConfig_, sensorData_, runtime_.lastTmepStatus, true);
+  const TmepClient::RequestResult tmepResult = tmepClient_.queueRequest(appConfig_, sensorData_, true);
+  runtime_.lastTmepStatus = tmepClient_.lastStatus();
   WebUiActionResult result;
-  result.ok = ok;
-  result.statusCode = ok ? 200 : 500;
-  result.message = ok ? "TMEP request byl uspesne odeslan"
-                      : "TMEP request se nepodarilo odeslat (zkontrolujte URL, WiFi a data)";
+  result.ok = tmepResult.accepted;
+  result.statusCode = tmepResult.statusCode;
+  result.message = tmepResult.message;
   return result;
 }
 
@@ -861,12 +878,14 @@ void AppController::Impl::handleMqttMessage(char* topic, byte* payload, unsigned
 
   if (strcmp(topic, mqttsupport::kTopicText) == 0) {
     runtime_.displayOverride.text = message;
+    runtime_.displayOverride.kind = DisplayOverrideKind::Text;
     runtime_.displayOverride.textSize = 2;
     runtime_.displayOverride.x = 10;
     runtime_.displayOverride.y = 10;
     runtime_.displayOverride.active = true;
     runtime_.displayOverride.untilMs = millis() + 30000UL;
     drawCustomTextScreen();
+    runtime_.lastDisplaySignature = buildCurrentFrameSignature(nullptr);
     return;
   }
 
@@ -891,6 +910,7 @@ void AppController::Impl::handleMqttMessage(char* topic, byte* payload, unsigned
 
   if (!doc["text"].isNull()) {
     runtime_.displayOverride.text = doc["text"].as<String>();
+    runtime_.displayOverride.kind = DisplayOverrideKind::Text;
     runtime_.displayOverride.x = doc["x"] | 10;
     runtime_.displayOverride.y = doc["y"] | 10;
     runtime_.displayOverride.textSize = doc["size"] | 2;
@@ -898,12 +918,15 @@ void AppController::Impl::handleMqttMessage(char* topic, byte* payload, unsigned
     runtime_.displayOverride.active = true;
     runtime_.displayOverride.untilMs = millis() + (duration * 1000UL);
     drawCustomTextScreen();
+    runtime_.lastDisplaySignature = buildCurrentFrameSignature(nullptr);
   }
 
   if (doc["line"].is<JsonObjectConst>()) {
     const JsonObject line = doc["line"];
+    activateRawDisplayOverride();
     display_.drawLine(line["x1"] | 0, line["y1"] | 0, line["x2"] | 399, line["y2"] | 0, kBlack);
     display_.refresh();
+    runtime_.lastDisplaySignature = buildCurrentFrameSignature(nullptr);
   }
 
   if (doc["rect"].is<JsonObjectConst>()) {
@@ -913,12 +936,14 @@ void AppController::Impl::handleMqttMessage(char* topic, byte* payload, unsigned
     const int w = rect["w"] | 50;
     const int h = rect["h"] | 30;
     const bool fill = rect["fill"] | false;
+    activateRawDisplayOverride();
     if (fill) {
       display_.fillRect(x, y, w, h, kBlack);
     } else {
       display_.drawRect(x, y, w, h, kBlack);
     }
     display_.refresh();
+    runtime_.lastDisplaySignature = buildCurrentFrameSignature(nullptr);
   }
 
   if (!doc["invert"].isNull()) {

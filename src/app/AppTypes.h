@@ -19,13 +19,20 @@ struct SensorSnapshot {
   bool valid = false;
 };
 
+enum class DisplayOverrideKind : uint8_t {
+  Text = 0,
+  RawCanvas = 1,
+};
+
 struct DisplayOverrideState {
   bool active = false;
+  DisplayOverrideKind kind = DisplayOverrideKind::Text;
   unsigned long untilMs = 0;
   String text = "";
   int textSize = 2;
   int x = 10;
   int y = 10;
+  uint32_t canvasRevision = 0;
 };
 
 struct DisplayConfigOverrideState {

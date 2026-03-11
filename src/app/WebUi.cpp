@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <stdlib.h>
+#include <cmath>
 
 #include <ArduinoJson.h>
 
@@ -210,7 +211,7 @@ bool readFloatField(const JsonDocument& doc, const char* key, float& out) {
     char* end = nullptr;
     errno = 0;
     const float parsed = strtof(text, &end);
-    if (errno != 0 || end == text || *end != '\0') {
+    if (errno != 0 || end == text || *end != '\0' || !isfinite(parsed)) {
       return false;
     }
 
@@ -219,7 +220,7 @@ bool readFloatField(const JsonDocument& doc, const char* key, float& out) {
   }
 
   out = value.as<float>();
-  return true;
+  return isfinite(out);
 }
 
 }  // namespace

@@ -216,6 +216,11 @@ inline String buildGraphFrameSignature(const airmon::HistoryManager& history,
 
 inline String buildOverrideFrameSignature(const DisplayOverrideState& overrideState) {
   String signature = "override|";
+  detail::appendInt(signature, static_cast<int>(overrideState.kind));
+  if (overrideState.kind == DisplayOverrideKind::RawCanvas) {
+    detail::appendUInt(signature, overrideState.canvasRevision);
+    return signature;
+  }
   detail::appendText(signature, overrideState.text);
   detail::appendInt(signature, overrideState.textSize);
   detail::appendInt(signature, overrideState.x);

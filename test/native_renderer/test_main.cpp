@@ -422,6 +422,39 @@ void test_graph_frame_signature_changes_when_history_changes() {
   TEST_ASSERT_TRUE(before != after);
 }
 
+void test_override_frame_signature_tracks_raw_canvas_revision() {
+  sharp::DisplayOverrideState overrideState;
+  overrideState.active = true;
+  overrideState.kind = sharp::DisplayOverrideKind::RawCanvas;
+  overrideState.canvasRevision = 1;
+
+  const String first = sharp::displayframes::buildOverrideFrameSignature(overrideState);
+
+  overrideState.canvasRevision = 2;
+  const String second = sharp::displayframes::buildOverrideFrameSignature(overrideState);
+
+  TEST_ASSERT_TRUE(first != second);
+}
+
+void test_override_frame_signature_distinguishes_text_and_raw_canvas() {
+  sharp::DisplayOverrideState textOverride;
+  textOverride.active = true;
+  textOverride.kind = sharp::DisplayOverrideKind::Text;
+  textOverride.text = "Hello";
+  textOverride.textSize = 2;
+  textOverride.x = 10;
+  textOverride.y = 20;
+
+  sharp::DisplayOverrideState rawOverride = textOverride;
+  rawOverride.kind = sharp::DisplayOverrideKind::RawCanvas;
+  rawOverride.canvasRevision = 1;
+
+  const String textSignature = sharp::displayframes::buildOverrideFrameSignature(textOverride);
+  const String rawSignature = sharp::displayframes::buildOverrideFrameSignature(rawOverride);
+
+  TEST_ASSERT_TRUE(textSignature != rawSignature);
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_graph_renderer_shows_placeholder_for_missing_history);
@@ -436,5 +469,7 @@ int main() {
   RUN_TEST(test_dashboard_frame_signature_ignores_raw_changes_that_do_not_change_visible_output);
   RUN_TEST(test_graph_frame_signature_ignores_raw_changes_when_visible_value_and_trend_match);
   RUN_TEST(test_graph_frame_signature_changes_when_history_changes);
+  RUN_TEST(test_override_frame_signature_tracks_raw_canvas_revision);
+  RUN_TEST(test_override_frame_signature_distinguishes_text_and_raw_canvas);
   return UNITY_END();
 }

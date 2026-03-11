@@ -1,10 +1,49 @@
 #include "config.h"
 
 #include <Preferences.h>
+#include <climits>
 #include <cmath>
 
 namespace {
 constexpr const char* NS = "appcfg";
+
+String missingStringSentinel(const String& value) {
+  return value == "\x1D" ? "\x1E" : "\x1D";
+}
+
+bool putStringChecked(Preferences& pref, const char* key, const String& value) {
+  pref.putString(key, value);
+  return pref.getString(key, missingStringSentinel(value)) == value;
+}
+
+bool putIntChecked(Preferences& pref, const char* key, const int value) {
+  pref.putInt(key, value);
+  const int sentinel = value == INT_MIN ? INT_MAX : INT_MIN;
+  return pref.getInt(key, sentinel) == value;
+}
+
+bool putULongChecked(Preferences& pref, const char* key, const unsigned long value) {
+  pref.putULong(key, value);
+  const unsigned long sentinel = value == ULONG_MAX ? 0UL : ULONG_MAX;
+  return pref.getULong(key, sentinel) == value;
+}
+
+bool putFloatChecked(Preferences& pref, const char* key, const float value) {
+  pref.putFloat(key, value);
+  const float stored = pref.getFloat(key, NAN);
+  return isfinite(stored) && stored == value;
+}
+
+bool putBoolChecked(Preferences& pref, const char* key, const bool value) {
+  pref.putBool(key, value);
+  return pref.getBool(key, !value) == value;
+}
+
+bool putUCharChecked(Preferences& pref, const char* key, const uint8_t value) {
+  pref.putUChar(key, value);
+  const uint8_t sentinel = value == 0xFF ? 0xFE : 0xFF;
+  return pref.getUChar(key, sentinel) == value;
+}
 
 void sanitize(AppConfig& cfg) {
   if (cfg.mqttPort < 1 || cfg.mqttPort > 65535) cfg.mqttPort = 1883;
@@ -24,6 +63,7 @@ void sanitize(AppConfig& cfg) {
 
 bool validateConfig(const AppConfig& cfg) {
   if (cfg.mqttPort < 1 || cfg.mqttPort > 65535) return false;
+  if (!isfinite(cfg.temperatureOffset)) return false;
   if (cfg.displayRotation > 3) return false;
   if (cfg.displayRefreshInterval < 500) return false;
   if (cfg.displayCycleInterval < 2000) return false;
@@ -80,34 +120,36 @@ bool saveConfig(const AppConfig& config) {
   Preferences pref;
   if (!pref.begin(NS, false)) return false;
 
-  pref.putString("wifi_ssid", config.wifiSsid);
-  pref.putString("wifi_pass", config.wifiPassword);
+  bool ok = true;
 
-  pref.putString("mqtt_server", config.mqttServer);
-  pref.putInt("mqtt_port", config.mqttPort);
-  pref.putString("mqtt_user", config.mqttUser);
-  pref.putString("mqtt_pass", config.mqttPassword);
-  pref.putString("mqtt_client", config.mqttClientId);
+  ok = putStringChecked(pref, "wifi_ssid", config.wifiSsid) && ok;
+  ok = putStringChecked(pref, "wifi_pass", config.wifiPassword) && ok;
 
-  pref.putString("tmep_domain", config.tmepDomain);
-  pref.putString("tmep_params", config.tmepParams);
+  ok = putStringChecked(pref, "mqtt_server", config.mqttServer) && ok;
+  ok = putIntChecked(pref, "mqtt_port", config.mqttPort) && ok;
+  ok = putStringChecked(pref, "mqtt_user", config.mqttUser) && ok;
+  ok = putStringChecked(pref, "mqtt_pass", config.mqttPassword) && ok;
+  ok = putStringChecked(pref, "mqtt_client", config.mqttClientId) && ok;
 
-  pref.putULong("mqtt_pub_ms", config.mqttPublishInterval);
-  pref.putULong("tmep_req_ms", config.tmepRequestInterval);
-  pref.putULong("disp_ref_ms", config.displayRefreshInterval);
-  pref.putULong("disp_cycle_ms", config.displayCycleInterval);
-  pref.putULong("mqtt_warmup", config.mqttWarmupDelay);
+  ok = putStringChecked(pref, "tmep_domain", config.tmepDomain) && ok;
+  ok = putStringChecked(pref, "tmep_params", config.tmepParams) && ok;
 
-  pref.putString("tmep_base", config.tmepBaseUrl);
-  pref.putFloat("temp_offset", config.temperatureOffset);
+  ok = putULongChecked(pref, "mqtt_pub_ms", config.mqttPublishInterval) && ok;
+  ok = putULongChecked(pref, "tmep_req_ms", config.tmepRequestInterval) && ok;
+  ok = putULongChecked(pref, "disp_ref_ms", config.displayRefreshInterval) && ok;
+  ok = putULongChecked(pref, "disp_cycle_ms", config.displayCycleInterval) && ok;
+  ok = putULongChecked(pref, "mqtt_warmup", config.mqttWarmupDelay) && ok;
 
-  pref.putUChar("disp_rot", config.displayRotation);
-  pref.putBool("disp_inv", config.displayInvertRequested);
-  pref.putUChar("disp_mode", config.displayMode);
-  pref.putUChar("disp_screen", config.displayScreen);
-  pref.putUChar("disp_metric", config.displayGraphMetric);
-  pref.putUChar("disp_range", config.displayGraphRange);
+  ok = putStringChecked(pref, "tmep_base", config.tmepBaseUrl) && ok;
+  ok = putFloatChecked(pref, "temp_offset", config.temperatureOffset) && ok;
+
+  ok = putUCharChecked(pref, "disp_rot", config.displayRotation) && ok;
+  ok = putBoolChecked(pref, "disp_inv", config.displayInvertRequested) && ok;
+  ok = putUCharChecked(pref, "disp_mode", config.displayMode) && ok;
+  ok = putUCharChecked(pref, "disp_screen", config.displayScreen) && ok;
+  ok = putUCharChecked(pref, "disp_metric", config.displayGraphMetric) && ok;
+  ok = putUCharChecked(pref, "disp_range", config.displayGraphRange) && ok;
 
   pref.end();
-  return true;
+  return ok;
 }
