@@ -22,12 +22,15 @@ enum class ManualScreen : uint8_t {
 
 enum class MetricId : uint8_t {
   CO2 = 0,
-  PM25 = 1,
-  TEMP = 2,
-  HUM = 3,
-  VOC = 4,
-  NOX = 5,
-  COUNT = 6,
+  PM1 = 1,
+  PM25 = 2,
+  PM4 = 3,
+  PM10 = 4,
+  TEMP = 5,
+  HUM = 6,
+  VOC = 7,
+  NOX = 8,
+  COUNT = 9,
 };
 
 enum class HistoryRange : uint8_t {
@@ -37,7 +40,10 @@ enum class HistoryRange : uint8_t {
 
 struct SensorData {
   float co2 = 0.0f;
+  float pm1 = 0.0f;
   float pm25 = 0.0f;
+  float pm4 = 0.0f;
+  float pm10 = 0.0f;
   float temp = 0.0f;
   float hum = 0.0f;
   float voc = 0.0f;
@@ -45,13 +51,26 @@ struct SensorData {
 };
 
 constexpr size_t kMetricCount = static_cast<size_t>(MetricId::COUNT);
+constexpr uint8_t kMetricCountU8 = static_cast<uint8_t>(MetricId::COUNT);
+
+inline bool isValidMetricId(const int value) {
+  return value >= 0 && value < static_cast<int>(MetricId::COUNT);
+}
+
+inline bool isValidMetricIdValue(const uint8_t value) { return value < static_cast<uint8_t>(MetricId::COUNT); }
 
 inline const char* metricLabel(const MetricId metric) {
   switch (metric) {
     case MetricId::CO2:
       return "CO2";
+    case MetricId::PM1:
+      return "PM1";
     case MetricId::PM25:
       return "PM2.5";
+    case MetricId::PM4:
+      return "PM4";
+    case MetricId::PM10:
+      return "PM10";
     case MetricId::TEMP:
       return "Teplota";
     case MetricId::HUM:
@@ -70,7 +89,10 @@ inline const char* metricUnit(const MetricId metric) {
   switch (metric) {
     case MetricId::CO2:
       return "ppm";
+    case MetricId::PM1:
     case MetricId::PM25:
+    case MetricId::PM4:
+    case MetricId::PM10:
       return "ug/m3";
     case MetricId::TEMP:
       return "C";
@@ -121,12 +143,58 @@ inline MetricId nextMetric(const MetricId metric) {
   return static_cast<MetricId>(nextIndex);
 }
 
+inline bool metricUsesSingleDecimal(const MetricId metric) {
+  switch (metric) {
+    case MetricId::PM1:
+    case MetricId::PM25:
+    case MetricId::PM4:
+    case MetricId::PM10:
+    case MetricId::TEMP:
+    case MetricId::HUM:
+      return true;
+    case MetricId::CO2:
+    case MetricId::VOC:
+    case MetricId::NOX:
+    case MetricId::COUNT:
+      return false;
+  }
+  return false;
+}
+
+inline float metricTrendThreshold(const MetricId metric) {
+  switch (metric) {
+    case MetricId::CO2:
+      return 10.0f;
+    case MetricId::PM1:
+    case MetricId::PM25:
+    case MetricId::PM4:
+    case MetricId::PM10:
+      return 1.0f;
+    case MetricId::TEMP:
+      return 0.3f;
+    case MetricId::HUM:
+      return 1.0f;
+    case MetricId::VOC:
+    case MetricId::NOX:
+      return 3.0f;
+    case MetricId::COUNT:
+      return 0.0f;
+  }
+  return 0.0f;
+}
+
 inline float metricValue(const SensorData& data, const MetricId metric) {
   switch (metric) {
     case MetricId::CO2:
       return data.co2;
+    case MetricId::PM1:
+      return data.pm1;
     case MetricId::PM25:
       return data.pm25;
+    case MetricId::PM4:
+      return data.pm4;
+    case MetricId::PM10:
+      return data.pm10;
     case MetricId::TEMP:
       return data.temp;
     case MetricId::HUM:

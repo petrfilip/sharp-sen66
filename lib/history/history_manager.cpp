@@ -16,28 +16,40 @@ const RingBuffer<float, 672>& quarterBuffer(const HistorySeries& series) {
 
 void HistoryManager::addMinuteSample(const SensorData& sample) {
   const size_t co2Index = metricIndex(MetricId::CO2);
+  const size_t pm1Index = metricIndex(MetricId::PM1);
   const size_t pm25Index = metricIndex(MetricId::PM25);
+  const size_t pm4Index = metricIndex(MetricId::PM4);
+  const size_t pm10Index = metricIndex(MetricId::PM10);
   const size_t tempIndex = metricIndex(MetricId::TEMP);
   const size_t humIndex = metricIndex(MetricId::HUM);
   const size_t vocIndex = metricIndex(MetricId::VOC);
   const size_t noxIndex = metricIndex(MetricId::NOX);
 
   appendSample(series_[co2Index], sample.co2);
+  appendSample(series_[pm1Index], sample.pm1);
   appendSample(series_[pm25Index], sample.pm25);
+  appendSample(series_[pm4Index], sample.pm4);
+  appendSample(series_[pm10Index], sample.pm10);
   appendSample(series_[tempIndex], sample.temp);
   appendSample(series_[humIndex], sample.hum);
   appendSample(series_[vocIndex], sample.voc);
   appendSample(series_[noxIndex], sample.nox);
 
   ++minuteRevisions_[co2Index];
+  ++minuteRevisions_[pm1Index];
   ++minuteRevisions_[pm25Index];
+  ++minuteRevisions_[pm4Index];
+  ++minuteRevisions_[pm10Index];
   ++minuteRevisions_[tempIndex];
   ++minuteRevisions_[humIndex];
   ++minuteRevisions_[vocIndex];
   ++minuteRevisions_[noxIndex];
 
   if (series_[co2Index].aggregateCount == 0U) ++quarterRevisions_[co2Index];
+  if (series_[pm1Index].aggregateCount == 0U) ++quarterRevisions_[pm1Index];
   if (series_[pm25Index].aggregateCount == 0U) ++quarterRevisions_[pm25Index];
+  if (series_[pm4Index].aggregateCount == 0U) ++quarterRevisions_[pm4Index];
+  if (series_[pm10Index].aggregateCount == 0U) ++quarterRevisions_[pm10Index];
   if (series_[tempIndex].aggregateCount == 0U) ++quarterRevisions_[tempIndex];
   if (series_[humIndex].aggregateCount == 0U) ++quarterRevisions_[humIndex];
   if (series_[vocIndex].aggregateCount == 0U) ++quarterRevisions_[vocIndex];

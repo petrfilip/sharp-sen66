@@ -78,40 +78,13 @@ inline void formatGraphMetricValue(const airmon::MetricId metric,
     return;
   }
 
-  switch (metric) {
-    case airmon::MetricId::CO2:
-    case airmon::MetricId::VOC:
-    case airmon::MetricId::NOX:
-      snprintf(buffer, bufferSize, "%.0f %s", value, airmon::metricUnit(metric));
-      break;
-    case airmon::MetricId::PM25:
-    case airmon::MetricId::TEMP:
-    case airmon::MetricId::HUM:
-      snprintf(buffer, bufferSize, "%.1f %s", value, airmon::metricUnit(metric));
-      break;
-    case airmon::MetricId::COUNT:
-      snprintf(buffer, bufferSize, "--");
-      break;
+  if (metric == airmon::MetricId::COUNT) {
+    snprintf(buffer, bufferSize, "--");
+    return;
   }
-}
 
-inline float graphTrendThreshold(const airmon::MetricId metric) {
-  switch (metric) {
-    case airmon::MetricId::CO2:
-      return 10.0f;
-    case airmon::MetricId::PM25:
-      return 1.0f;
-    case airmon::MetricId::TEMP:
-      return 0.3f;
-    case airmon::MetricId::HUM:
-      return 1.0f;
-    case airmon::MetricId::VOC:
-    case airmon::MetricId::NOX:
-      return 3.0f;
-    case airmon::MetricId::COUNT:
-      return 0.0f;
-  }
-  return 0.0f;
+  snprintf(buffer, bufferSize, airmon::metricUsesSingleDecimal(metric) ? "%.1f %s" : "%.0f %s", value,
+           airmon::metricUnit(metric));
 }
 
 inline uint8_t graphTrendDirection(const airmon::HistoryManager& history,
@@ -127,7 +100,7 @@ inline uint8_t graphTrendDirection(const airmon::HistoryManager& history,
     }
 
     const float delta = currentValue - latestValue;
-    const float threshold = graphTrendThreshold(metric);
+    const float threshold = airmon::metricTrendThreshold(metric);
     if (delta > threshold) {
       return 1U;
     }
@@ -149,7 +122,7 @@ inline uint8_t graphTrendDirection(const airmon::HistoryManager& history,
   }
 
   const float delta = latestValue - previousValue;
-  const float threshold = graphTrendThreshold(metric);
+  const float threshold = airmon::metricTrendThreshold(metric);
   if (delta > threshold) {
     return 1U;
   }

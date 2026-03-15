@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <WebServer.h>
 
+#include "metrics.h"
 #include "config.h"
 
 namespace sharp {
@@ -21,6 +22,8 @@ struct WebUiDataSnapshot {
   String currentView;
   String currentMetric;
   String currentRange;
+  uint8_t currentMetricId = 0;
+  uint8_t currentRangeId = 0;
 
   String apSsid;
   String apIp;
@@ -69,6 +72,13 @@ class WebUi {
     virtual WebUiActionResult saveWebUiWifi(const String& ssid, const String& password) = 0;
     virtual WebUiActionResult forgetWebUiWifi() = 0;
     virtual WebUiActionResult sendWebUiTmep() = 0;
+    virtual size_t webUiHistoryPointCount(airmon::MetricId metric, airmon::HistoryRange range) const = 0;
+    virtual bool webUiHistoryPointAt(airmon::MetricId metric,
+                                     airmon::HistoryRange range,
+                                     size_t index,
+                                     float& out) const = 0;
+    virtual uint32_t webUiHistoryRevision(airmon::MetricId metric, airmon::HistoryRange range) const = 0;
+    virtual float webUiLiveMetricValue(airmon::MetricId metric, bool& valid) const = 0;
     virtual bool isWebUiCaptiveMode() const = 0;
     virtual String webUiCaptiveIp() const = 0;
   };
@@ -85,6 +95,7 @@ class WebUi {
   void handleApiConfigGet();
   void handleApiConfigPost();
   void handleApiDisplayRuntimePost();
+  void handleApiHistory();
   void handleApiWifiReconnect();
   void handleApiWifiSave();
   void handleApiWifiForget();

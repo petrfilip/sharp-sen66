@@ -29,7 +29,7 @@ A custom 3D-printable enclosure for this project is available on Printables:
 - Individual topics for each measurement + combined JSON
 - Online/offline status with Last Will and Testament
 - Bidirectional control — send messages to the display from HA
-- Built-in web UI (tabs: **Aktuální data** + **Konfigurace**) on port 80
+- Built-in web UI (tabs: **Aktuální data** + **Historie** + **Konfigurace**) on port 80
 - TMEP.cz integration with tokenized query parameters, real-time request URL preview and manual request button
 - MQTT publish protection: invalid startup values are filtered + warmup delay before first publish
 
@@ -113,7 +113,14 @@ After connecting the device to WiFi, open: `http://<device-ip>/`
    - Live values from SEN66 (temperature, humidity, PM, VOC, NOx, CO2)
    - WiFi/MQTT status and uptime
 
-2. **Konfigurace**
+2. **Historie**
+   - SVG-rendered history charts using in-memory samples from `historyManager`
+   - `Single` mode: one metric with absolute Y axis
+   - `Compare` mode: multiple metrics at once with per-series on/off toggles
+   - Compare mode normalizes each enabled series to `0-100 %`, so it compares trends rather than absolute units
+   - Historical metrics now include `CO2`, `PM1`, `PM2.5`, `PM4`, `PM10`, `temperature`, `humidity`, `VOC`, `NOx`
+
+3. **Konfigurace**
    - WiFi: SSID + password
    - MQTT: server, port, username, password
    - Display: rotation (0-3, výchozí **2**), display mode, graph metric/range

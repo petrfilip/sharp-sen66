@@ -150,6 +150,13 @@ class AppController::Impl : public WebUi::Delegate {
   WebUiActionResult saveWebUiWifi(const String& ssid, const String& password) override;
   WebUiActionResult forgetWebUiWifi() override;
   WebUiActionResult sendWebUiTmep() override;
+  size_t webUiHistoryPointCount(airmon::MetricId metric, airmon::HistoryRange range) const override;
+  bool webUiHistoryPointAt(airmon::MetricId metric,
+                           airmon::HistoryRange range,
+                           size_t index,
+                           float& out) const override;
+  uint32_t webUiHistoryRevision(airmon::MetricId metric, airmon::HistoryRange range) const override;
+  float webUiLiveMetricValue(airmon::MetricId metric, bool& valid) const override;
   bool isWebUiCaptiveMode() const override;
   String webUiCaptiveIp() const override;
 
@@ -476,7 +483,10 @@ void AppController::Impl::maybeStoreHistorySample(const unsigned long nowMs) {
 airmon::SensorData AppController::Impl::buildHistorySample() const {
   airmon::SensorData sample;
   sample.co2 = static_cast<float>(sensorData_.co2);
+  sample.pm1 = sensorData_.pm1;
   sample.pm25 = sensorData_.pm25;
+  sample.pm4 = sensorData_.pm4;
+  sample.pm10 = sensorData_.pm10;
   sample.temp = sensorData_.temperature;
   sample.hum = sensorData_.humidity;
   sample.voc = sensorData_.voc;
@@ -488,8 +498,14 @@ float AppController::Impl::liveMetricValue(const airmon::MetricId metric) const 
   switch (metric) {
     case airmon::MetricId::CO2:
       return static_cast<float>(sensorData_.co2);
+    case airmon::MetricId::PM1:
+      return sensorData_.pm1;
     case airmon::MetricId::PM25:
       return sensorData_.pm25;
+    case airmon::MetricId::PM4:
+      return sensorData_.pm4;
+    case airmon::MetricId::PM10:
+      return sensorData_.pm10;
     case airmon::MetricId::TEMP:
       return sensorData_.temperature;
     case airmon::MetricId::HUM:
@@ -732,6 +748,8 @@ WebUiDataSnapshot AppController::Impl::buildWebUiData() const {
   data.currentView = airmon::viewLabel(runtime_.currentView);
   data.currentMetric = airmon::metricLabel(runtime_.currentGraphMetric);
   data.currentRange = airmon::rangeLabel(runtime_.currentGraphRange);
+  data.currentMetricId = static_cast<uint8_t>(runtime_.currentGraphMetric);
+  data.currentRangeId = static_cast<uint8_t>(runtime_.currentGraphRange);
   data.apSsid = wifiProvisioning_.isCaptiveMode() ? wifiProvisioning_.getApSsid() : "";
   data.apIp = wifiProvisioning_.isCaptiveMode() ? wifiProvisioning_.getApIp() : "";
   data.currentSsid = WiFi.status() == WL_CONNECTED ? WiFi.SSID() : "";
@@ -899,6 +917,28 @@ WebUiActionResult AppController::Impl::sendWebUiTmep() {
   result.statusCode = tmepResult.statusCode;
   result.message = tmepResult.message;
   return result;
+}
+
+size_t AppController::Impl::webUiHistoryPointCount(const airmon::MetricId metric,
+                                                   const airmon::HistoryRange range) const {
+  return historyManager_.pointCount(metric, range);
+}
+
+bool AppController::Impl::webUiHistoryPointAt(const airmon::MetricId metric,
+                                              const airmon::HistoryRange range,
+                                              const size_t index,
+                                              float& out) const {
+  return historyManager_.pointAt(metric, range, index, out);
+}
+
+uint32_t AppController::Impl::webUiHistoryRevision(const airmon::MetricId metric,
+                                                   const airmon::HistoryRange range) const {
+  return historyManager_.revision(metric, range);
+}
+
+float AppController::Impl::webUiLiveMetricValue(const airmon::MetricId metric, bool& valid) const {
+  valid = sensorData_.valid;
+  return liveMetricValue(metric);
 }
 
 bool AppController::Impl::isWebUiCaptiveMode() const { return wifiProvisioning_.isCaptiveMode(); }

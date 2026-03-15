@@ -459,66 +459,31 @@ GraphRenderer::TrendDirection GraphRenderer::calculateTrend(const HistoryManager
 }
 
 float GraphRenderer::trendThreshold(const MetricId metric) const {
-  switch (metric) {
-    case MetricId::CO2:
-      return 10.0f;
-    case MetricId::PM25:
-      return 1.0f;
-    case MetricId::TEMP:
-      return 0.3f;
-    case MetricId::HUM:
-      return 1.0f;
-    case MetricId::VOC:
-    case MetricId::NOX:
-      return 3.0f;
-    case MetricId::COUNT:
-      return 0.0f;
-  }
-  return 0.0f;
+  return metricTrendThreshold(metric);
 }
 
 void GraphRenderer::formatAxisValue(const MetricId metric,
                                     const float value,
                                     char* buffer,
                                     const size_t bufferSize) const {
-  switch (metric) {
-    case MetricId::PM25:
-    case MetricId::TEMP:
-    case MetricId::HUM:
-      snprintf(buffer, bufferSize, "%.1f", value);
-      break;
-    case MetricId::CO2:
-    case MetricId::VOC:
-    case MetricId::NOX:
-      snprintf(buffer, bufferSize, "%.0f", value);
-      break;
-    case MetricId::COUNT:
-      snprintf(buffer, bufferSize, "--");
-      break;
+  if (metric == MetricId::COUNT) {
+    snprintf(buffer, bufferSize, "--");
+    return;
   }
+
+  snprintf(buffer, bufferSize, metricUsesSingleDecimal(metric) ? "%.1f" : "%.0f", value);
 }
 
 void GraphRenderer::formatMetricValue(const MetricId metric,
                                       const float value,
                                       char* buffer,
                                       const size_t bufferSize) const {
-  switch (metric) {
-    case MetricId::CO2:
-      snprintf(buffer, bufferSize, "%.0f %s", value, metricUnit(metric));
-      break;
-    case MetricId::PM25:
-    case MetricId::TEMP:
-    case MetricId::HUM:
-      snprintf(buffer, bufferSize, "%.1f %s", value, metricUnit(metric));
-      break;
-    case MetricId::VOC:
-    case MetricId::NOX:
-      snprintf(buffer, bufferSize, "%.0f %s", value, metricUnit(metric));
-      break;
-    case MetricId::COUNT:
-      snprintf(buffer, bufferSize, "--");
-      break;
+  if (metric == MetricId::COUNT) {
+    snprintf(buffer, bufferSize, "--");
+    return;
   }
+
+  snprintf(buffer, bufferSize, metricUsesSingleDecimal(metric) ? "%.1f %s" : "%.0f %s", value, metricUnit(metric));
 }
 
 }  // namespace airmon

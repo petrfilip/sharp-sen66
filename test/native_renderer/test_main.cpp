@@ -77,7 +77,10 @@ void addHistorySamples(airmon::HistoryManager& history, const std::initializer_l
   for (const float value : values) {
     airmon::SensorData sample;
     sample.co2 = value;
+    sample.pm1 = value;
     sample.pm25 = value;
+    sample.pm4 = value;
+    sample.pm10 = value;
     sample.temp = value;
     sample.hum = value;
     sample.voc = value;
@@ -91,7 +94,10 @@ void addHistoryRampSamples(airmon::HistoryManager& history, const size_t count, 
     const float value = startValue + (static_cast<float>(index) * step);
     airmon::SensorData sample;
     sample.co2 = value;
+    sample.pm1 = value;
     sample.pm25 = value;
+    sample.pm4 = value;
+    sample.pm10 = value;
     sample.temp = value;
     sample.hum = value;
     sample.voc = value;
@@ -105,6 +111,41 @@ void addHistoryRampSamples(airmon::HistoryManager& history, const size_t count, 
 void setUp() {}
 
 void tearDown() {}
+
+void test_metrics_cycle_through_extended_particulate_set() {
+  TEST_ASSERT_EQUAL(static_cast<int>(airmon::MetricId::PM1), static_cast<int>(airmon::nextMetric(airmon::MetricId::CO2)));
+  TEST_ASSERT_EQUAL(static_cast<int>(airmon::MetricId::PM25), static_cast<int>(airmon::nextMetric(airmon::MetricId::PM1)));
+  TEST_ASSERT_EQUAL(static_cast<int>(airmon::MetricId::PM4), static_cast<int>(airmon::nextMetric(airmon::MetricId::PM25)));
+  TEST_ASSERT_EQUAL(static_cast<int>(airmon::MetricId::PM10), static_cast<int>(airmon::nextMetric(airmon::MetricId::PM4)));
+  TEST_ASSERT_EQUAL(static_cast<int>(airmon::MetricId::TEMP), static_cast<int>(airmon::nextMetric(airmon::MetricId::PM10)));
+  TEST_ASSERT_EQUAL(static_cast<int>(airmon::MetricId::CO2), static_cast<int>(airmon::nextMetric(airmon::MetricId::NOX)));
+}
+
+void test_history_manager_stores_added_particulate_metrics() {
+  airmon::HistoryManager history;
+  airmon::SensorData sample;
+  sample.co2 = 800.0f;
+  sample.pm1 = 1.1f;
+  sample.pm25 = 2.2f;
+  sample.pm4 = 4.4f;
+  sample.pm10 = 10.1f;
+  sample.temp = 22.0f;
+  sample.hum = 45.0f;
+  sample.voc = 100.0f;
+  sample.nox = 30.0f;
+
+  history.addMinuteSample(sample);
+
+  float value = 0.0f;
+  TEST_ASSERT_EQUAL_UINT32(1U, history.pointCount(airmon::MetricId::PM1, airmon::HistoryRange::Range24H));
+  TEST_ASSERT_TRUE(history.pointAt(airmon::MetricId::PM1, airmon::HistoryRange::Range24H, 0U, value));
+  TEST_ASSERT_TRUE(std::abs(value - 1.1f) < 0.01f);
+  TEST_ASSERT_TRUE(history.pointAt(airmon::MetricId::PM4, airmon::HistoryRange::Range24H, 0U, value));
+  TEST_ASSERT_TRUE(std::abs(value - 4.4f) < 0.01f);
+  TEST_ASSERT_TRUE(history.pointAt(airmon::MetricId::PM10, airmon::HistoryRange::Range24H, 0U, value));
+  TEST_ASSERT_TRUE(std::abs(value - 10.1f) < 0.01f);
+  TEST_ASSERT_EQUAL_UINT32(1U, history.revision(airmon::MetricId::PM10, airmon::HistoryRange::Range24H));
+}
 
 void test_graph_renderer_shows_placeholder_for_missing_history() {
   Adafruit_SharpMem display;
@@ -197,7 +238,10 @@ void test_graph_renderer_updates_plot_without_full_redraw_when_history_changes()
 
   airmon::SensorData sample;
   sample.co2 = 1300.0f;
+  sample.pm1 = 1.0f;
   sample.pm25 = 1.0f;
+  sample.pm4 = 1.0f;
+  sample.pm10 = 1.0f;
   sample.temp = 20.0f;
   sample.hum = 50.0f;
   sample.voc = 1.0f;
@@ -409,7 +453,10 @@ void test_graph_frame_signature_changes_when_history_changes() {
 
   airmon::SensorData sample;
   sample.co2 = 720.0f;
+  sample.pm1 = 1.0f;
   sample.pm25 = 1.0f;
+  sample.pm4 = 1.0f;
+  sample.pm10 = 1.0f;
   sample.temp = 20.0f;
   sample.hum = 50.0f;
   sample.voc = 1.0f;
@@ -457,6 +504,8 @@ void test_override_frame_signature_distinguishes_text_and_raw_canvas() {
 
 int main() {
   UNITY_BEGIN();
+  RUN_TEST(test_metrics_cycle_through_extended_particulate_set);
+  RUN_TEST(test_history_manager_stores_added_particulate_metrics);
   RUN_TEST(test_graph_renderer_shows_placeholder_for_missing_history);
   RUN_TEST(test_graph_renderer_draws_series_axes_and_trend_arrow);
   RUN_TEST(test_graph_renderer_updates_live_value_without_full_redraw);

@@ -4,6 +4,8 @@
 #include <climits>
 #include <cmath>
 
+#include "metrics.h"
+
 namespace {
 constexpr const char* NS = "appcfg";
 
@@ -56,7 +58,7 @@ void sanitize(AppConfig& cfg) {
   if (!isfinite(cfg.temperatureOffset)) cfg.temperatureOffset = -2.0f;
   if (cfg.displayMode > 1) cfg.displayMode = 0;
   if (cfg.displayScreen > 1) cfg.displayScreen = 0;
-  if (cfg.displayGraphMetric > 5) cfg.displayGraphMetric = 0;
+  if (!airmon::isValidMetricIdValue(cfg.displayGraphMetric)) cfg.displayGraphMetric = 0;
   if (cfg.displayGraphRange > 1) cfg.displayGraphRange = 0;
 }
 }  // namespace
@@ -72,7 +74,7 @@ bool validateConfig(const AppConfig& cfg) {
   if (cfg.mqttWarmupDelay < 1000) return false;
   if (cfg.displayMode > 1) return false;
   if (cfg.displayScreen > 1) return false;
-  if (cfg.displayGraphMetric > 5) return false;
+  if (!airmon::isValidMetricIdValue(cfg.displayGraphMetric)) return false;
   if (cfg.displayGraphRange > 1) return false;
   return true;
 }
